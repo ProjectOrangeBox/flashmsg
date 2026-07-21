@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace peels\flashmsg;
+namespace orange\flashmsg;
 
 use orange\framework\base\Singleton;
-use peels\session\SessionInterface;
+use orange\session\SessionInterface;
 use orange\framework\exceptions\InvalidValue;
 use orange\framework\interfaces\DataInterface;
 use orange\framework\interfaces\EventInterface;

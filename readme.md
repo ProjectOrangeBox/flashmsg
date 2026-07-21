@@ -5,8 +5,8 @@ Queues one-request flash messages (success/error/info banners), persisting them 
 ## Example
 
 ```php
-use peels\flashmsg\Flashmsg;
-use peels\flashmsg\FlashMsgInterface;
+use orange\flashmsg\Flashmsg;
+use orange\flashmsg\FlashMsgInterface;
 
 $flash = Flashmsg::getInstance($config, $session, $input, $output, $data); // $data implements DataInterface
 

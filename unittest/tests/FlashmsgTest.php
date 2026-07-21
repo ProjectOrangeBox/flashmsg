@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use orange\framework\Data;
 use orange\framework\stubs\Output;
-use peels\session\Session;
-use peels\flashmsg\Flashmsg;
+use orange\session\Session;
+use orange\flashmsg\Flashmsg;
 use Framework\Session\SaveHandlers\FilesHandler;
 
 final class FlashmsgTest extends unitTestHelper
