@@ -1,0 +1,32 @@
+{
+    "name": "orange/flashmsg",
+    "description": "Flash messaging with configurable transports.",
+    "type": "library",
+    "homepage": "https://github.com/ProjectOrangeBox/flashmsg",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Don Myers",
+            "email": "donmyers@me.com"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/ProjectOrangeBox/flashmsg/issues",
+        "source": "https://github.com/ProjectOrangeBox/flashmsg"
+    },
+    "require": {
+        "php": ">=8.4",
+        "orange/framework": "dev-main",
+        "orange/session": "dev-main"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "peels\\flashmsg\\": "src/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
