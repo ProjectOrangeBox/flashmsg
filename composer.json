@@ -16,8 +16,8 @@
     },
     "require": {
         "php": ">=8.4",
-        "orange/framework": "dev-main",
-        "orange/session": "dev-main"
+        "orange/framework": "dev-master",
+        "orange/session": "dev-master"
     },
     "require-dev": {
         "phpunit/phpunit": "^13.2"
