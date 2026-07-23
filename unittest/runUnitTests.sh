@@ -1,3 +1,3 @@
 #!/bin/sh
 
-../../../bin/phpunit --debug --colors --testdox --bootstrap bootstrap.php --testdox-html results.html ./tests
+../../../bin/phpunit --colors --testdox --bootstrap bootstrap.php --testdox-html results.html ./tests

@@ -1,15 +1,32 @@
-var notify = {};
+/**
+ * notify.js - growl-style renderer for orange/flashmsg (traditional pages).
+ *
+ * Reads the JSON the server embedded in the page:
+ *
+ *   <script type="application/json" id="flash-messages">
+ *       <?= json_encode($flash_messages_array) ?>
+ *   </script>
+ *
+ * where $flash_messages_array is the configured "view variable" the flashmsg
+ * service mirrors into the data service - the getMessages(true) shape:
+ *
+ *   { "messages": [{"type":"success","msg":"Saved.","sticky":false}, ...],
+ *     "count": 1, "initial_pause": 3, "pause_for_each": 1000 }
+ *
+ * Non-sticky notices auto-dismiss (initial_pause seconds, plus
+ * pause_for_each ms per queued notice); sticky ones stay until clicked.
+ *
+ * Programmatic use:
+ *   notify.add('Saved.', 'success');       // sticky inferred from type
+ *   notify.add('Broken.', 'danger', true); // or forced
+ *   notify.removeAll();
+ */
+var notify = {
+    stickyTypes: ['danger', 'warning'],
+    initialPause: 3,
+    pauseForEach: 1000,
 
-// this must match the view / data variables you are adding to the page.
-// <script>var flashMsgs = "[{text:'Foo',style:'success'},{text:'Bar',style:'danager'}]";</script>
-
-notify.messages = flashMsgs;
-
-notify.css = `
-/* growl style */
-* html .notice-wrap {
-    position: absolute;
-}
+    css: `
 .notice-wrap {
     position: fixed;
     top: 8px;
@@ -23,223 +40,103 @@ notify.css = `
     position: relative;
     margin: 0 0 6px 0;
     padding: 12px;
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+    font-family: sans-serif;
 }
-.notice-item strong {
-    font-size: 115%;
-    line-height: 115%;
-}
-.notice-wrap .notice-item.alert p {
-    margin: 0;
-    padding: 0;
-}
-.notice-wrap .notice-item-wrapper .notice-item.alert.alert-block {
-    padding-top: 8px;
-    padding-bottom: 8px;
-}
-.notice-wrap .close {
-    opacity: .5;
-    filter: alpha(opacity=50);
-    line-height: 15px;
-}
-.notice-wrap .close:hover {
-    opacity: 1;
-    filter: alpha(opacity=99);
-}
+.notice-item.info    { background: #2478c8; }
+.notice-item.success { background: #2f9e44; }
+.notice-item.warning { background: #b8860b; }
+.notice-item.danger  { background: #c0392b; }
 @media (max-width: 767px) {
     .notice-wrap {
         width: 94% !important;
     }
 }
-`
+`,
 
-/**
- * Add a notice
- * notify.add('text',"[success|danger|warning|info]",(optional redirect)'/foo/bar);
- *
- * Remove all of the notices on the screen
- * notify.removeAll();
- *
- * Raw add msg
- * notify.show({text:'text message',style:"[success|danger|warning|info]",stay: [true|false]});
- *
- */
+    wrap: null,
 
-notify.addInfo = function (text, redirect) {
-    notify.add(text, "info", redirect);
-};
+    boot: function () {
+        // inject our css once
+        var style = document.createElement('style');
+        style.textContent = notify.css;
+        document.head.appendChild(style);
 
-notify.addSuccess = function (text, redirect) {
-    notify.add(text, "success", redirect);
-};
+        notify.wrap = document.createElement('div');
+        notify.wrap.className = 'notice-wrap';
+        document.body.appendChild(notify.wrap);
 
-notify.addError = function (text, redirect) {
-    notify.add(text, "danger", redirect);
-};
+        // consume the server-embedded payload when present
+        var tag = document.getElementById('flash-messages');
 
-notify.add = function (text, style, redirect) {
-    var msg = notify._buildMsg(text, style);
-
-    if (redirect == undefined) {
-        notify.show(msg);
-    } else {
-        notify.save(msg);
-
-        /* special @ redirects? we only have 1 right now */
-        switch (redirect) {
-            case "@back":
-                window.history.back();
-                break;
-            default:
-                window.location.href = redirect;
+        if (!tag) {
+            return;
         }
-    }
-};
 
-/**
- * remove all shown flash messages
- */
-notify.removeAll = function () {
-    $(".notice-item-wrapper").each(function () {
-        $(this).remove();
-    });
-};
+        var payload;
 
-/**
- * show a flash message
- */
-notify.show = function (msg) {
-    var noticeWrapAll, noticeItemOuter, noticeItemInner, noticeItemClose;
+        try {
+            payload = JSON.parse(tag.textContent);
+        } catch (e) {
+            return;
+        }
 
-    noticeWrapAll = !$(".notice-wrap").length ? $("<div></div>").addClass("notice-wrap").appendTo("body") : $(".notice-wrap");
-    noticeItemOuter = $("<div></div>").addClass("notice-item-wrapper");
-    noticeItemInner = $("<div></div>").hide();
-    noticeItemInner.addClass("notice-item alert alert-" + msg.style);
-    noticeItemInner.attr("data-dismiss", "alert");
-    noticeItemInner.appendTo(noticeWrapAll);
-    noticeItemInner.html(msg.text);
-    noticeItemInner.animate({ opacity: "show" }, 600);
-    noticeItemInner.wrap(noticeItemOuter);
+        if (!payload || !Array.isArray(payload.messages)) {
+            return;
+        }
 
-    noticeItemClose = $("<div></div>").addClass("close");
-    noticeItemClose.prependTo(noticeItemInner);
-    noticeItemClose.html("&times;");
-    noticeItemClose.click(function (e) {
-        e.stopPropagation();
-        notify._remove(noticeItemInner);
-    });
+        notify.initialPause = payload.initial_pause ?? notify.initialPause;
+        notify.pauseForEach = payload.pause_for_each ?? notify.pauseForEach;
 
-    if (!msg.stay) {
-        /* if they didn't include anything then use 4 seconds */
-        msg.stayTime = msg.stayTime ?? notify.stayTime;
-
-        /* if they didn't use milliseconds adjust it */
-        msg.stayTime = msg.stayTime > 30 ? msg.stayTime : msg.stayTime * 1000;
-
-        setTimeout(function () {
-            notify._remove(noticeItemInner);
-        }, msg.stayTime);
-    }
-};
-
-/**
- * save flash messages to browser storage
- */
-notify.save = function (msg) {
-    var message = localStorage.getItem("notify_flash_msg");
-
-    if (message == null) {
-        message = [];
-    }
-
-    message.push(msg);
-
-    localStorage.setItem("notify_flash_msg", message);
-};
-
-/**
- * setup flash messages
- */
-notify.init = function () {
-    if (typeof notify.messages !== "undefined") {
-        /* if they didn't include anything then use 4 seconds */
-        notify.stayTime = notify.messages.pause != undefined ? notify.messages.pause : 3000;
-
-        /* if they didn't use milliseconds adjust it */
-        notify.stayTime = notify.stayTime > 30 ? notify.stayTime : notify.stayTime * 1000;
-    } else {
-        notify.stayTime = 3000;
-    }
-
-    /* Any message in cold storage? */
-    var saved_messages = notify._load();
-
-    if (saved_messages) {
-        saved_messages.forEach(function (msgRecord) {
-            notify.add(msgRecord.text, msgRecord.style);
+        payload.messages.forEach(function (m, index) {
+            notify.add(m.msg, m.type, m.sticky, index);
         });
-    }
+    },
 
-    /**
-     * Any messages attached to the
-     * javascript global variable message on the page?
-     * this is inserted into the page from the server code
-     *
-     * <script>var $messages = "[{text:'Foo',style:'success'},{text:'Bar',style:'danager'}]";</script>
-     */
-    if (typeof notify.messages !== "undefined") {
-        notify.messages.forEach(function (msgRecord) {
-            notify.add(msgRecord.msg, msgRecord.type);
+    add: function (msg, type, sticky, index) {
+        type = type || 'info';
+        sticky = (sticky !== undefined) ? sticky : notify.stickyTypes.includes(type);
+        index = index || 0;
+
+        var item = document.createElement('div');
+        item.className = 'notice-item ' + type;
+        item.textContent = msg;
+
+        // click always dismisses
+        item.addEventListener('click', function () {
+            notify.remove(item);
         });
-    }
 
-    let styleSheet = document.createElement('style');
-    styleSheet.textContent = notify.css;
-    document.head.appendChild(styleSheet);
+        notify.wrap.appendChild(item);
+
+        if (!sticky) {
+            var delay = (notify.initialPause * 1000) + (index * notify.pauseForEach);
+
+            setTimeout(function () {
+                notify.remove(item);
+            }, delay);
+        }
+
+        return item;
+    },
+
+    remove: function (item) {
+        if (item && item.parentNode) {
+            item.parentNode.removeChild(item);
+        }
+    },
+
+    removeAll: function () {
+        if (notify.wrap) {
+            notify.wrap.textContent = '';
+        }
+    },
 };
 
-/**
- * "Internal" Functions
- */
-notify._buildMsg = function (text, style) {
-    var map = {
-        red: "danger",
-        yellow: "warning",
-        blue: "info",
-        green: "success",
-        danger: "danger",
-        warning: "warning",
-        info: "info",
-        success: "info",
-        error: "danager",
-        failure: "danager",
-    };
-
-    var msg = {};
-
-    msg.text = text != undefined ? text : "No Message Giving.";
-    msg.style = style != undefined ? map[style] : "info";
-    msg.stay = msg.style == "danger";
-
-    return msg;
-};
-
-notify._load = function () {
-    var messages = localStorage.getItem("notify_flash_msg");
-
-    localStorage.removeItem("notify_flash_msg");
-
-    return messages;
-};
-
-notify._remove = function (obj) {
-    obj.animate({ opacity: "0" }, 600, function () {
-        obj.parent().animate({ height: "0px" }, 300, function () {
-            obj.parent().remove();
-        });
-    });
-};
-
-/**
- * setup flash messages
- */
-notify.init();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', notify.boot);
+} else {
+    notify.boot();
+}

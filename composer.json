@@ -1,7 +1,14 @@
 {
     "name": "orange/flashmsg",
-    "description": "Flash messaging with configurable transports.",
+    "description": "Flash messaging for traditional (PRG + session) and SPA (JSON response) delivery from one queue.",
     "type": "library",
+    "keywords": [
+        "flash",
+        "flash-messages",
+        "notifications",
+        "toast",
+        "spa"
+    ],
     "homepage": "https://github.com/ProjectOrangeBox/flashmsg",
     "license": "MIT",
     "authors": [
@@ -26,6 +33,12 @@
         "psr-4": {
             "orange\\flashmsg\\": "src/"
         }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "scripts-descriptions": {
+        "test": "Run the PHPUnit test suite"
     },
     "minimum-stability": "dev",
     "prefer-stable": true
