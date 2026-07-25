@@ -28,4 +28,3 @@ require $standalone
 // config directory is missing required keys (status codes, mimes, ...)
 define('__FRAMEWORK_SRC__', $frameworkSrc);
 
-require __DIR__ . '/unitTestHelper.php';
