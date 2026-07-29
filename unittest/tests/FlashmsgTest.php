@@ -9,6 +9,7 @@ use orange\flashmsg\Flashmsg;
 use orange\session\SessionInterface;
 use orange\flashmsg\FlashMsgInterface;
 use orange\framework\stubs\Output as OutputStub;
+use orange\framework\exceptions\output\Output as OutputException;
 use orange\framework\exceptions\InvalidValue;
 
 /**
@@ -209,8 +210,18 @@ final class FlashmsgTest extends unitTestHelper
         ]);
 
         // the stub's own config dir lacks required keys (status codes, mimes)
-        // so hand it the framework's real output config
-        $this->output = OutputStub::newInstance(require __FRAMEWORK_SRC__ . '/config/output.php', $this->input);
+        // so hand it the framework's real output config.
+        //
+        // 'allowed hosts' names the hosts this application answers to, and
+        // www.example.com is this fixture's own host - the referer below is a
+        // user coming from another page of the same site. Output::redirect()
+        // refuses an absolute target whose host is not listed, because a Referer
+        // header is attacker-controlled and following it blindly is an open
+        // redirect. See testRedirectRefusesAnOffSiteReferer().
+        $this->output = OutputStub::newInstance(array_replace(
+            require __FRAMEWORK_SRC__ . '/config/output.php',
+            ['allowed hosts' => ['www.example.com']],
+        ), $this->input);
 
         $this->data = Data::newInstance([]);
 
@@ -404,6 +415,39 @@ final class FlashmsgTest extends unitTestHelper
         $this->instance->msg('Problem!', 'danger')->redirect();
 
         $this->assertContains('Location: ' . self::REFERER, $this->output->getHeaders());
+    }
+
+    /**
+     * The Referer header is supplied by the client, so '@' hands a
+     * fully attacker-controlled string to redirect(). Output refuses any
+     * absolute target whose host is not one this application answers to, and
+     * Flashmsg must not weaken that by vouching for the target - a flash message
+     * is not a reason to trust where the browser says it came from.
+     */
+    public function testRedirectRefusesAnOffSiteReferer(): void
+    {
+        $input = Input::newInstance([
+            'server' => [
+                'HTTP_REFERER' => 'https://evil.example.net/landing',
+                'request_method' => 'get',
+            ],
+        ]);
+
+        $flashmsg = Flashmsg::newInstance([], $this->session, $input, $this->output, $this->data);
+
+        $this->expectException(OutputException::class);
+
+        $flashmsg->msg('Problem!', 'danger')->redirect('@');
+    }
+
+    /**
+     * A relative target needs no allowlist - it cannot leave the origin.
+     */
+    public function testRedirectAllowsARelativeTarget(): void
+    {
+        $this->instance->msg('Problem!', 'danger')->redirect('/somewhere/else');
+
+        $this->assertContains('Location: /somewhere/else', $this->output->getHeaders());
     }
 
     /* events */
