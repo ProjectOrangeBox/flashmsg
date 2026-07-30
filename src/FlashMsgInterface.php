@@ -14,6 +14,7 @@ interface FlashMsgInterface
     public const SUCCESS = 'success';
 
     public function msg(string $msg, ?string $type = null): self;
+    /** @param array<array-key, string> $array */
     public function msgs(array $array, ?string $type = null): self;
 
     /* traditional (PRG) delivery */
@@ -21,9 +22,11 @@ interface FlashMsgInterface
     public function keep(): self;
 
     /* SPA / JSON delivery */
+    /** @return array<array-key, mixed> the queued messages, detailed or not */
     public function pull(bool $detailed = true): array;
 
     /* inspection */
+    /** @return array<array-key, mixed> the queued messages, detailed or not */
     public function getMessages(bool $detailed = false): array;
     public function hasMessages(): bool;
     public function count(): int;

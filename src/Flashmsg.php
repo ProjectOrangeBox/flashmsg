@@ -36,11 +36,14 @@ class Flashmsg extends Singleton implements FlashMsgInterface, JsonSerializable,
     use ConfigurationTrait;
 
     protected array $config = [];
+    /** @var array<string, array{type: string, msg: string, sticky: bool}> keyed by a content hash, so re-adding is idempotent */
     protected array $messages = [];
 
     protected string $sessionMsgKey;
     protected string $defaultType;
+    /** @var list<string> types that survive a page view */
     protected array $stickyTypes;
+    /** @var array<string, string> alias => canonical type */
     protected array $typeAliases;
     protected string $httpReferer;
 
@@ -51,6 +54,9 @@ class Flashmsg extends Singleton implements FlashMsgInterface, JsonSerializable,
      * @param OutputInterface $output Output service - performs redirect()
      * @param ?DataInterface $data Data service - when present, the queue mirrors into the configured view variable
      * @param ?EventInterface $event Event service - when present, 'flash.msg' fires per added message
+     */
+    /**
+     * @param array<string, mixed> $config
      */
     protected function __construct(array $config, protected ?SessionInterface $session, protected InputInterface $input, protected OutputInterface $output, protected ?DataInterface $data = null, protected ?EventInterface $event = null)
     {
@@ -115,6 +121,9 @@ class Flashmsg extends Singleton implements FlashMsgInterface, JsonSerializable,
      * pairs. Note the pair form cannot carry a purely numeric message -
      * PHP casts the array key to int and it reads as the list form.
      */
+    /**
+     * @param array<array-key, string> $array
+     */
     public function msgs(array $array, ?string $type = null): self
     {
         $type ??= $this->defaultType;
@@ -172,6 +181,9 @@ class Flashmsg extends Singleton implements FlashMsgInterface, JsonSerializable,
      * detailed adds the display metadata (count and pause timings) the JS
      * layer uses; plain is just the message list
      */
+    /**
+     * @return list<array{type: string, msg: string, sticky: bool}>|array{messages: list<array{type: string, msg: string, sticky: bool}>, count: int, initial_pause: mixed, pause_for_each: mixed}
+     */
     public function getMessages(bool $detailed = false): array
     {
         $messages = array_values($this->messages);
@@ -187,6 +199,9 @@ class Flashmsg extends Singleton implements FlashMsgInterface, JsonSerializable,
     /**
      * SPA / JSON delivery: return the messages AND clear the queue, so the
      * batch rides exactly one response
+     */
+    /**
+     * @return list<array{type: string, msg: string, sticky: bool}>|array{messages: list<array{type: string, msg: string, sticky: bool}>, count: int, initial_pause: mixed, pause_for_each: mixed}
      */
     public function pull(bool $detailed = true): array
     {
@@ -226,6 +241,9 @@ class Flashmsg extends Singleton implements FlashMsgInterface, JsonSerializable,
     /**
      * json_encode() of the service (or embedding it in a response payload)
      * emits the detailed shape the JS layer consumes
+     */
+    /**
+     * @return list<array{type: string, msg: string, sticky: bool}>|array{messages: list<array{type: string, msg: string, sticky: bool}>, count: int, initial_pause: mixed, pause_for_each: mixed}
      */
     public function jsonSerialize(): array
     {
